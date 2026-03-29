@@ -128,10 +128,6 @@ void sendATCommand(String command) {
   }
 }
 
-void setUpWebserver() {
-
-}
-
 String receiveMessage() {
   static String buffer = "";
   String message = "hi";
