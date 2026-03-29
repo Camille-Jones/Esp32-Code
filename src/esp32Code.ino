@@ -7,6 +7,7 @@
 
 #include <HardwareSerial.h>
 #include <WiFi.h>
+#include <ctime>
 
 // Pin definitions
 #define BUTTON_PIN 4
@@ -35,6 +36,8 @@ unsigned long currentTime = millis();
 unsigned long previousTime = 0; 
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
+
+
 
 String header;
 
@@ -125,9 +128,13 @@ void sendATCommand(String command) {
   }
 }
 
+void setUpWebserver() {
+
+}
+
 String receiveMessage() {
   static String buffer = "";
-  String message = "";
+  String message = "hi";
 
   while (LoRaSerial.available()) {
     char c = LoRaSerial.read();
@@ -154,7 +161,7 @@ String receiveMessage() {
           Serial.println(senderAddress);
           Serial.print("Message: ");
           Serial.println(message);
-          
+          return message;
 
           if (fourthComma != -1) {
             String rssi = buffer.substring(thirdComma + 1, fourthComma);
@@ -174,9 +181,9 @@ String receiveMessage() {
       }
       // Clear buffer after processing
       buffer = "";
-      return message;
     }
   }
+  return message;
 }
 
 void receiveMessageVoid() {
@@ -241,11 +248,13 @@ void blinkLED(int times, int delayMs) {
 
 void loop() {
   
+  srand(time(0));
 
+  int randomNumber = rand() % 90 + 10; 
 
   WiFiClient client = server.available();   // Listen for incoming clients
 
-  Serial.println(receiveMessage());
+  //Serial.println(receiveMessage());
   receiveMessageVoid();
 
   if (client) {                             // If a new client connects,
@@ -285,25 +294,9 @@ void loop() {
             // Web Page Heading
             client.println("<body><h1>ESP32 Web Server</h1>");
             
-            // Display current state, and ON/OFF buttons for GPIO 26  
-            client.println("<p>GPIO 26 - State " + receiveMessage() + "</p>");
-            // If the output26State is off, it displays the ON button       
-            if (output26State!=receiveMessage()) {
-              client.println("<p><a href=\"/26/on\"><button class=\"button\">"+ receiveMessage() +"</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">"+ receiveMessage() +"</button></a></p>");
-            } 
+            // Display current message
+            client.println("<p>Message " + String(randomNumber) + "</p>");
                
-            // Display current state, and ON/OFF buttons for GPIO 27  
-            client.println("<p>GPIO 27 - State " + receiveMessage() + "</p>");
-            // If the output27State is off, it displays the ON button       
-            if (output27State!=receiveMessage()) {
-              client.println("<p><a href=\"/27/on\"><button class=\"button\">"+ receiveMessage() +"</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/27/off\"><button class=\"button button2\">"+ receiveMessage() +"</button></a></p>");
-            }
-            client.println("</body></html>");
-            
             // The HTTP response ends with another blank line
             client.println();
             // Break out of the while loop
