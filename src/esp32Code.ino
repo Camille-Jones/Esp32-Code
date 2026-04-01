@@ -8,6 +8,8 @@
 #include <HardwareSerial.h>
 #include <WiFi.h>
 #include <ctime>
+#include <LittleFS.h>
+#include <ESPAsyncWebServer.h>
 
 // Pin definitions
 #define BUTTON_PIN 4
@@ -28,6 +30,35 @@ HardwareSerial LoRaSerial(2);
 const char* ssid = "ele";
 const char* password = "123456789";
 
+unsigned long lastSSE    = 0;
+const unsigned long SSE_INTERVAL  = 500;
+
+AsyncWebServer   server(80);
+AsyncEventSource events("/events");
+
+float  Vbatt2       = 0.0;
+float  Vbatt1       = 0.0;
+float  VShuntDC     = 0.0;
+bool   MotorEnabled = false;
+bool   BrakeEnabled = false;
+bool   DMSEnabled   = false;
+float  PowerPct     = 0.0;
+float  Watts        = 0.0;
+
+String buildJSON() {
+  String j = "{";
+  j += "\"Vbatt1\":"       + String(Vbatt1,   2) + ",";
+  j += "\"Vbatt2\":"       + String(Vbatt2,   2) + ",";
+  j += "\"VShuntDC\":"     + String(VShuntDC, 4) + ",";
+  j += "\"MotorEnabled\":" + String(MotorEnabled ? "true" : "false") + ",";
+  j += "\"BrakeEnabled\":" + String(BrakeEnabled ? "true" : "false") + ",";
+  j += "\"DMSEnabled\":"   + String(DMSEnabled   ? "true" : "false") + ",";
+  j += "\"PowerPct\":"     + String(PowerPct, 1) + ",";
+  j += "\"Watts\":"        + String(Watts,    1);
+  j += "}";
+  return j;
+}
+
 String output26State = "off";
 String output27State = "off";
 
@@ -42,13 +73,32 @@ const long timeoutTime = 2000;
 String header;
 
 // Set web server port number to 80
-WiFiServer server(80);
+WiFiServer wifiserver(80);
 
 void setup() {
   // Initialize Serial for debugging
   Serial.begin(115200);
   delay(1000);
   Serial.println("ESP32 LoRa Transceiver Starting...");
+
+  //starts LittleFS
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS mount failed"); return;
+  }
+  Serial.println("LittleFS mounted OK");
+
+  Serial.print("Connecting");
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println("\nIP: " + WiFi.localIP().toString());
+
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+  events.onConnect([](AsyncEventSourceClient* client) {
+    client->send(buildJSON().c_str(), "data", millis(), 1000);
+  });
+  server.addHandler(&events);
+
+  server.begin();
 
   // Initialize LoRa Serial
   LoRaSerial.begin(115200, SERIAL_8N1, RX2_PIN, TX2_PIN);
@@ -74,7 +124,7 @@ void setup() {
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-  server.begin();
+  wifiserver.begin();
 
   Serial.println("ESP32 Ready! Press button to send message.");
   Serial.println("Waiting for incoming messages...");
@@ -243,12 +293,18 @@ void blinkLED(int times, int delayMs) {
 }
 
 void loop() {
+
+  unsigned long now = millis();
+  if (now - lastSSE >= SSE_INTERVAL) {
+    lastSSE = now;
+    events.send(buildJSON().c_str(), "data", now);
+  }
   
   srand(time(0));
 
   int randomNumber = rand() % 90 + 10; 
 
-  WiFiClient client = server.available();   // Listen for incoming clients
+  WiFiClient client = wifiserver.available();   // Listen for incoming clients
 
   //Serial.println(receiveMessage());
   receiveMessageVoid();
