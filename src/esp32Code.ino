@@ -10,6 +10,17 @@
 #include <ctime>
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
+#include <Arduino.h>
+#if defined(ESP32) || defined(LIBRETINY)
+#include <AsyncTCP.h>
+#include <WiFi.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#elif defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
+#include <RPAsyncTCP.h>
+#include <WiFi.h>
+#endif
 
 // Pin definitions
 #define BUTTON_PIN 4
@@ -33,10 +44,11 @@ const char* password = "123456789";
 unsigned long lastSSE    = 0;
 const unsigned long SSE_INTERVAL  = 500;
 
-AsyncWebServer   server(80);
+AsyncWebServer   server(8080);
+AsyncWebSocket   ws("/ws");
 AsyncEventSource events("/events");
 
-float  Vbatt2       = 0.0;
+float  Vbatt2       = 9.0;
 float  Vbatt1       = 0.0;
 float  VShuntDC     = 0.0;
 bool   MotorEnabled = false;
@@ -81,36 +93,6 @@ void setup() {
   delay(1000);
   Serial.println("ESP32 LoRa Transceiver Starting...");
 
-  //starts LittleFS
-  if (!LittleFS.begin(true)) {
-    Serial.println("LittleFS mount failed"); return;
-  }
-  Serial.println("LittleFS mounted OK");
-
-  Serial.print("Connecting");
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\nIP: " + WiFi.localIP().toString());
-
-  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
-
-  events.onConnect([](AsyncEventSourceClient* client) {
-    client->send(buildJSON().c_str(), "data", millis(), 1000);
-  });
-  server.addHandler(&events);
-
-  server.begin();
-
-  // Initialize LoRa Serial
-  LoRaSerial.begin(115200, SERIAL_8N1, RX2_PIN, TX2_PIN);
-
-  // Setup pins
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-
-  // Configure LoRa module
-  setupLoRa();
-
   // Set up Wifi
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -125,6 +107,54 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   wifiserver.begin();
+
+  //starts LittleFS
+  // if (!LittleFS.begin(true)) {
+  //   Serial.println("LittleFS mount failed"); return;
+  // }
+  // Serial.println("LittleFS mounted OK");
+
+  server.addHandler(&ws);
+
+  // attach AsyncEventSource
+  server.addHandler(&events);
+
+  server.begin();
+
+   if (!LittleFS.begin()) {  // 'true' = format on fail (ESP32)
+    Serial.println("LittleFS FAILED");
+    return;
+  }
+  Serial.println("LittleFS mounted OK");
+
+  // Serial.print("Connecting");
+  // while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("." ); Serial.print(WiFi.status());}
+  // Serial.println("\nIP: " + WiFi.localIP().toString());
+
+  server.serveStatic("/", LittleFS, "/").setDefaultFile("/index.html");
+  //server.serveStatic("/", LittleFS, "/");
+  Serial.println(LittleFS.exists("/index.html"));
+
+  // events.onConnect([](AsyncEventSourceClient* client) {
+  //   client->send(buildJSON().c_str(), "data", millis(), 1000);
+  // });
+  // server.addHandler(&events);
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  request->send(LittleFS, "/index.html", "text/html");
+  Serial.println(LittleFS.exists("/index.html") + "hi");
+});
+
+  // Initialize LoRa Serial
+  LoRaSerial.begin(115200, SERIAL_8N1, RX2_PIN, TX2_PIN);
+
+  // Setup pins
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+
+  // Configure LoRa module
+  setupLoRa();
 
   Serial.println("ESP32 Ready! Press button to send message.");
   Serial.println("Waiting for incoming messages...");
@@ -294,81 +324,94 @@ void blinkLED(int times, int delayMs) {
 
 void loop() {
 
+   srand(time(0));
+
+  float randomNumber1 = rand() % 90 + 10; 
+  float randomNumber2 = rand() % 90 + 10; 
+  float randomNumber3 = rand() % 90 + 10;
+  float randomNumber4 = rand() % 10; 
+  float randomNumber5 = rand() % 100;  
+  Vbatt1 = randomNumber1;
+  Vbatt2 = randomNumber2;
+  VShuntDC = randomNumber3;
+  Watts = randomNumber4;
+  PowerPct = randomNumber5;
+
+  
+
+
   unsigned long now = millis();
   if (now - lastSSE >= SSE_INTERVAL) {
     lastSSE = now;
     events.send(buildJSON().c_str(), "data", now);
   }
-  
-  srand(time(0));
-
-  int randomNumber = rand() % 90 + 10; 
+   // Simulate Vbatt1 between 1.0 and 10.0
 
   WiFiClient client = wifiserver.available();   // Listen for incoming clients
 
   //Serial.println(receiveMessage());
   receiveMessageVoid();
 
-  if (client) {                             // If a new client connects,
-    currentTime = millis();
-    previousTime = currentTime;
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client.connected() && currentTime - previousTime <= timeoutTime) {  // loop while the client's connected
-      currentTime = millis();
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
+//   if (client) {                             // If a new client connects,
+//     currentTime = millis();
+//     previousTime = currentTime;
+//     Serial.println("New Client.");          // print a message out in the serial port
+//     String currentLine = "";                // make a String to hold incoming data from the client
+//     while (client.connected() && currentTime - previousTime <= timeoutTime) {  // loop while the client's connected
+//       currentTime = millis();
+//       if (client.available()) {             // if there's bytes to read from the client,
+//         char c = client.read();             // read a byte, then
+//         Serial.write(c);                    // print it out the serial monitor
+//         header += c;
+//         if (c == '\n') {                    // if the byte is a newline character
+//           // if the current line is blank, you got two newline characters in a row.
+//           // that's the end of the client HTTP request, so send a response:
+//           if (currentLine.length() == 0) {
+//             // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
+//             // and a content-type so the client knows what's coming, then a blank line:
+//             client.println("HTTP/1.1 200 OK");
+//             client.println("Content-type:text/html");
+//             client.println("Connection: close");
+//             client.println();
             
             
-            // Display the HTML web page
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons 
-            // Feel free to change the background-color and font-size attributes to fit your preferences
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
-            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #555555;}</style></head>");
+//             // Display the HTML web page
+//             client.println("<!DOCTYPE html><html>");
+//             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+//             client.println("<link rel=\"icon\" href=\"data:,\">");
+//             // CSS to style the on/off buttons 
+//             // Feel free to change the background-color and font-size attributes to fit your preferences
+//             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+//             client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
+//             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
+//             client.println(".button2 {background-color: #555555;}</style></head>");
             
-            // Web Page Heading
-            client.println("<body><h1>ESP32 Web Server</h1>");
+//             // Web Page Heading
+//             client.println("<body><h1>ESP32 Web Server</h1>");
             
-            // Display current message
-            client.println("<p>Message " + String(randomNumber) + "</p>");
+//             // Display current message
+//             client.println("<p>Message " + String(randomNumber) + "</p>");
                
-            // The HTTP response ends with another blank line
-            client.println();
-            // Break out of the while loop
-            break;
-          } else { // if you got a newline, then clear currentLine
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
-        }
-      }
-    }
-    // Clear the header variable
-    header = "";
-    // Close the connection
-    client.stop();
-    Serial.println("Client disconnected.");
-    Serial.println(""); 
+//             // The HTTP response ends with another blank line
+//             client.println();
+//             // Break out of the while loop
+//             break;
+//           } else { // if you got a newline, then clear currentLine
+//             currentLine = "";
+//           }
+//         } else if (c != '\r') {  // if you got anything else but a carriage return character,
+//           currentLine += c;      // add it to the end of the currentLine
+//         }
+//       }
+//     }
+//     // Clear the header variable
+//     header = "";
+//     // Close the connection
+//     client.stop();
+//     Serial.println("Client disconnected.");
+//     Serial.println(""); 
 
 
   
-}
+// }
 }

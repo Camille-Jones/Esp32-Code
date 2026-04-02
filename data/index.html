@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electrathon Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="speed-lines"></div>
+  <header>
+    <h1>Electrathon Dashboard</h1>
+    <span class="status-dot" id="conn-dot"></span>
+    <span class="status-label" id="conn-label">Connecting…</span>
+  </header>
+
+  <main>
+    <section>
+      <h2>Voltage</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <label>Vbatt1</label>
+          <div class="value"><span id="vbatt1">—</span><span class="unit">V</span></div>
+        </div>
+        <div class="card">
+          <label>Vbatt2</label>
+          <div class="value"><span id="vbatt2">—</span><span class="unit">V</span></div>
+        </div>
+        <div class="card">
+          <label>VShuntDC</label>
+          <div class="value"><span id="vshunt">—</span><span class="unit">V</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Enable states</h2>
+      <div class="pill-row">
+        <span class="pill" id="p-motor">Motor</span>
+        <span class="pill" id="p-brake">Brake</span>
+        <span class="pill" id="p-dms">DMS</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Power</h2>
+      <div class="grid grid-2">
+        <div class="card">
+          <label>Power %</label>
+          <div class="value"><span id="power-pct">—</span><span class="unit">%</span></div>
+          <div class="bar-track"><div class="bar-fill" id="power-bar"></div></div>
+          <div class="bar-labels"><span>0</span><span>100</span></div>
+        </div>
+        <div class="card">
+          <label>Watts</label>
+          <div class="value"><span id="watts">—</span><span class="unit">W</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Watts history</h2>
+      <div class="card spark-card">
+        <div class="spark-wrap">
+          <div class="spark-y-labels" id="spark-y-labels"></div>
+          <svg id="sparkline" viewBox="0 0 400 80" preserveAspectRatio="none">
+            <g id="spark-axes"></g>
+            <polyline id="spark-fill" />
+            <polyline id="spark-line" />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card download-card">
+        <button class="btn-download" id="btn-download">⬇ Download Logs</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="passion-quote">"website design is my passion"</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
