@@ -208,61 +208,61 @@ void sendATCommand(String command) {
   }
 }
 
-String receiveMessage() {
-  static String buffer = "";
-  String message = "hi";
+// String receiveMessage() {
+//   static String buffer = "";
+//   String message = "hi";
 
-  while (LoRaSerial.available()) {
-    char c = LoRaSerial.read();
-    buffer += c;
+//   while (LoRaSerial.available()) {
+//     char c = LoRaSerial.read();
+//     buffer += c;
 
-    // Check for end of line
-    if (c == '\n') {
-      // Process the complete message
-      if (buffer.indexOf("+RCV") != -1) {
-        Serial.println("\n*** Received Message ***");
+//     // Check for end of line
+//     if (c == '\n') {
+//       // Process the complete message
+//       if (buffer.indexOf("+RCV") != -1) {
+//         Serial.println("\n*** Received Message ***");
         
-        // Parse the received message
-        // Format: +RCV=address,length,data,RSSI,SNR
-        int firstComma = buffer.indexOf(',');
-        int secondComma = buffer.indexOf(',', firstComma + 1);
-        int thirdComma = buffer.indexOf(',', secondComma + 1);
-        int fourthComma = buffer.indexOf(',', thirdComma + 1);
+//         // Parse the received message
+//         // Format: +RCV=address,length,data,RSSI,SNR
+//         int firstComma = buffer.indexOf(',');
+//         int secondComma = buffer.indexOf(',', firstComma + 1);
+//         int thirdComma = buffer.indexOf(',', secondComma + 1);
+//         int fourthComma = buffer.indexOf(',', thirdComma + 1);
 
-        if (firstComma != -1 && secondComma != -1 && thirdComma != -1) {
-          String senderAddress = buffer.substring(5, firstComma);
-          String message = buffer.substring(secondComma + 1, thirdComma);
+//         if (firstComma != -1 && secondComma != -1 && thirdComma != -1) {
+//           String senderAddress = buffer.substring(5, firstComma);
+//           String message = buffer.substring(secondComma + 1, thirdComma);
           
-          Serial.print("From: ");
-          Serial.println(senderAddress);
-          Serial.print("Message: ");
-          Serial.println(message);
-          return message;
+//           Serial.print("From: ");
+//           Serial.println(senderAddress);
+//           Serial.print("Message: ");
+//           Serial.println(message);
+//           return message;
 
-          if (fourthComma != -1) {
-            String rssi = buffer.substring(thirdComma + 1, fourthComma);
-            String snr = buffer.substring(fourthComma + 1);
-            Serial.print("RSSI: ");
-            Serial.print(rssi);
-            Serial.print(" dBm, SNR: ");
-            Serial.println(snr);
-          }
+//           if (fourthComma != -1) {
+//             String rssi = buffer.substring(thirdComma + 1, fourthComma);
+//             String snr = buffer.substring(fourthComma + 1);
+//             Serial.print("RSSI: ");
+//             Serial.print(rssi);
+//             Serial.print(" dBm, SNR: ");
+//             Serial.println(snr);
+//           }
           
-          Serial.println("************************\n");
+//           Serial.println("************************\n");
           
-          // Blink LED when message received
-          blinkLED(3, 200);
+//           // Blink LED when message received
+//           blinkLED(3, 200);
 
-        }
-      }
-      // Clear buffer after processing
-      buffer = "";
-    }
-  }
-  return message;
-}
+//         }
+//       }
+//       // Clear buffer after processing
+//       buffer = "";
+//     }
+//   }
+//   return message;
+// }
 
-void receiveMessageVoid() {
+void receiveMessage() {
   static String buffer = "";
 
   while (LoRaSerial.available()) {
@@ -350,7 +350,7 @@ void loop() {
   WiFiClient client = wifiserver.available();   // Listen for incoming clients
 
   //Serial.println(receiveMessage());
-  receiveMessageVoid();
+  receiveMessage();
 
 //   if (client) {                             // If a new client connects,
 //     currentTime = millis();

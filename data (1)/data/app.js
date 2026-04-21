@@ -23,7 +23,6 @@ const dom = {
   connDot:  el('conn-dot'),
   connLabel:el('conn-label'),
   speedLines: el('speed-lines'),
-  footer:   document.querySelector('.passion-quote'),
 };
 
 // ── Floating particles ──────────────────────────────────────────────────────
@@ -59,25 +58,6 @@ function bounceIfChanged(id, newVal) {
   }
   prevValues[id] = newVal;
 }
-
-// ── Footer quotes ───────────────────────────────────────────────────────────
-const quotes = [
-  '"website design is my passion" - Sam',
-  '"it\'s not a bug, it\'s a feature"',
-  '"the best error message is the one that never shows up"',
-  '"speed has never killed anyone. suddenly becoming stationary, that\'s what gets you" — Jeremy Clarkson',
-  '"measure with a micrometer, mark with chalk, cut with an axe"',
-];
-let quoteIdx = 0;
-function rotateQuote() {
-  dom.footer.style.opacity = '0';
-  setTimeout(() => {
-    quoteIdx = (quoteIdx + 1) % quotes.length;
-    dom.footer.textContent = quotes[quoteIdx];
-    dom.footer.style.opacity = '1';
-  }, 400);
-}
-setInterval(rotateQuote, 8000);
 
 // ── Max power acceleration ──────────────────────────────────────────────────
 let maxPowerActive = false;
@@ -153,8 +133,6 @@ function render(d) {
   dom.vbatt1.textContent = v1;
   dom.vbatt2.textContent = v2;
   dom.vshunt.textContent = vs;
-
-  //console.log(vbatt1);
 
   setPill(dom.pMotor, d.MotorEnabled === true || d.MotorEnabled === 'true');
   setPill(dom.pBrake, d.BrakeEnabled === true || d.BrakeEnabled === 'true');
