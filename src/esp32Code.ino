@@ -7,6 +7,9 @@
 
 #include <HardwareSerial.h>
 #include <WiFi.h>
+#include <string>
+#include <vector>
+#include <sstream>
 #include <ctime>
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
@@ -51,9 +54,9 @@ AsyncEventSource events("/events");
 float  Vbatt2       = 9.0;
 float  Vbatt1       = 0.0;
 float  VShuntDC     = 0.0;
-bool   MotorEnabled = false;
-bool   BrakeEnabled = false;
-bool   DMSEnabled   = false;
+bool   MotorEnabled = 0.0;
+bool   BrakeEnabled = 0.0;
+bool   DMSEnabled   = 0.0;
 float  PowerPct     = 0.0;
 float  Watts        = 0.0;
 
@@ -64,9 +67,9 @@ String buildJSON() {
   j += "\"VShuntDC\":"     + String(VShuntDC, 4) + ",";
   j += "\"MotorEnabled\":" + String(MotorEnabled ? "true" : "false") + ",";
   j += "\"BrakeEnabled\":" + String(BrakeEnabled ? "true" : "false") + ",";
-  j += "\"DMSEnabled\":"   + String(DMSEnabled   ? "true" : "false") + ",";
+  j += "\"DMSEnabled\":"   + String(DMSEnabled ? "true" : "false") + ",";
   j += "\"PowerPct\":"     + String(PowerPct, 1) + ",";
-  j += "\"Watts\":"        + String(Watts,    1);
+  j += "\"Watts\":"        + String(Watts, 1);
   j += "}";
   return j;
 }
@@ -290,7 +293,24 @@ void receiveMessage() {
           Serial.println(senderAddress);
           Serial.print("Message: ");
           Serial.println(message);
-          
+
+          std::stringstream test(message.c_str());
+          std::string segment;
+          std::vector<std::string> seglist;
+
+          while(std::getline(test, segment, '-'))
+          {
+             seglist.push_back(segment);
+          }
+
+          Vbatt2       = std::stof(seglist[2]);
+          Vbatt1       = std::stof(seglist[1]);
+          VShuntDC     = std::stof(seglist[7]);
+          std::stof(seglist[4]) == 1 ? MotorEnabled = true : MotorEnabled = false;
+          std::stof(seglist[5]) == 1 ? MotorEnabled = true : MotorEnabled = false;
+          std::stof(seglist[6]) == 1 ? MotorEnabled = true : MotorEnabled = false;
+          PowerPct     = std::stof(seglist[0]);
+          Watts        = std::stof(seglist[3]);
 
           if (fourthComma != -1) {
             String rssi = buffer.substring(thirdComma + 1, fourthComma);
@@ -326,16 +346,16 @@ void loop() {
 
    srand(time(0));
 
-  float randomNumber1 = rand() % 90 + 10; 
-  float randomNumber2 = rand() % 90 + 10; 
-  float randomNumber3 = rand() % 90 + 10;
-  float randomNumber4 = rand() % 10; 
-  float randomNumber5 = rand() % 100;  
-  Vbatt1 = randomNumber1;
-  Vbatt2 = randomNumber2;
-  VShuntDC = randomNumber3;
-  Watts = randomNumber4;
-  PowerPct = randomNumber5;
+  // float randomNumber1 = rand() % 90 + 10; 
+  // float randomNumber2 = rand() % 90 + 10; 
+  // float randomNumber3 = rand() % 90 + 10;
+  // float randomNumber4 = rand() % 10; 
+  // float randomNumber5 = rand() % 100;  
+  // Vbatt1 = randomNumber1;
+  // Vbatt2 = randomNumber2;
+  // VShuntDC = randomNumber3;
+  // Watts = randomNumber4;
+  // PowerPct = randomNumber5;
 
   
 
